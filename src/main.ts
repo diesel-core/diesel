@@ -427,7 +427,11 @@ export default class Diesel {
           async (error: any) => {
             return this.handleError(error, ctx);
           },
-        );
+        )
+        .then((res: Response) => {
+          if (req.method === "HEAD") return new Response(null, { status: res?.status, statusText: res?.statusText, headers: res?.headers });
+          return res;
+        })
       };
     }
 
@@ -497,7 +501,10 @@ export default class Diesel {
           async (error: any) => {
             return this.handleError(error, ctx);
           },
-        );
+        ).then((res: Response) => {
+          if (req.method === "HEAD") return new Response(null, { status: res?.status, statusText: res?.statusText, headers: res?.headers });
+          return res;
+        })
       };
     }
 
@@ -536,9 +543,14 @@ export default class Diesel {
       env,
       executionContext,
     );
-    return this.#execute_handlers(ctx, matchedRouteHandler).catch((err: any) =>
+    return this.#execute_handlers(ctx, matchedRouteHandler)
+      .catch((err: any) =>
       this.handleError(err, ctx),
-    );
+    )
+    .then(res => {
+      if (req.method === "HEAD") return new Response(null, { status: res?.status, statusText: res?.statusText, headers: res?.headers });
+      return res;
+    })
   }
 
   /**
