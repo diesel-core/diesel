@@ -17,7 +17,10 @@ async function convertNodeReqToWebReq(req: http.IncomingMessage) {
         headers: req.headers as Record<string, string>,
         body: null
     }
-    if (req.method !== 'GET' && req.method !== 'PUT') {
+    const contentLength = req.headers['content-length'];
+    const hasBody = req.headers['transfer-encoding'] !== undefined
+        || (contentLength !== undefined && contentLength !== '0');
+    if (req.method !== 'GET' && req.method !== 'PUT' && hasBody) {
         init.body = new ReadableStream({
             start(controller) {
                 req.on('data', (chunk) => controller.enqueue(new Uint8Array(chunk)));
@@ -25,6 +28,10 @@ async function convertNodeReqToWebReq(req: http.IncomingMessage) {
                 req.on('error', (err) => controller.error(err));
             }
         });
+        // undici's Request constructor throws "RequestInit: duplex option is
+        // required when sending a body" unless duplex is set when a streaming
+        // body is present.
+        (init as RequestInit & { duplex: 'half' }).duplex = 'half';
     }
     return new Request(url, init);
 }
@@ -32,7 +39,20 @@ async function convertNodeReqToWebReq(req: http.IncomingMessage) {
 
 
 async function sendWebResToNodeRes(webRes: Response, nodeRes: http.ServerResponse) {
-    nodeRes.writeHead(webRes.status, Object.fromEntries(webRes.headers))
+    // Object.fromEntries(webRes.headers) collapses repeated header names
+    // (e.g. multiple Set-Cookie headers) down to the last value, silently
+    // dropping every cookie but the last one set. Set headers individually
+    // instead, and pass all Set-Cookie values through as an array.
+    webRes.headers.forEach((value, key) => {
+        if (key.toLowerCase() !== 'set-cookie') {
+            nodeRes.setHeader(key, value)
+        }
+    })
+    const cookies = webRes.headers.getSetCookie()
+    if (cookies.length) {
+        nodeRes.setHeader('Set-Cookie', cookies)
+    }
+    nodeRes.writeHead(webRes.status)
     const reader = webRes.body?.getReader()
     if (reader) {
         let result
