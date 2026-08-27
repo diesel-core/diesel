@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.5.1
+
+### Fixes
+
+- **Node adaptor (`diesel-core/node`) dropped every `Set-Cookie` header but the last one.** `sendWebResToNodeRes` built the outgoing Node response headers with `Object.fromEntries(webRes.headers)`, which collapses repeated header names into a single object key — so a response setting both an `accessToken` and a `refreshToken` cookie only ever sent the last one to the client. Headers are now applied individually via `nodeRes.setHeader`, with all `Set-Cookie` values passed through together as an array (`webRes.headers.getSetCookie()`).
+- **Node adaptor crashed on any request with a body** (`POST`/`DELETE`/etc.) with `TypeError: RequestInit: duplex option is required when sending a body`. `convertNodeReqToWebReq` attached a streaming `ReadableStream` body to the web `Request` without setting `duplex: 'half'`, which undici (Node's `fetch`/`Request` implementation) requires whenever a request has a streaming body. Body detection is now based on `Content-Length`/`Transfer-Encoding` rather than just excluding `GET`/`PUT`, and `duplex: 'half'` is set whenever a body stream is attached.
+
 ## 3.4.0
 
 ### Performance
