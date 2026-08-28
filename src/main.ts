@@ -38,7 +38,7 @@ import { handleRouteNotFound, runHooks } from "./utils/request.util.js";
 import { HTTPException } from "./http-exception";
 import { Router, RouterFactory } from "./router/interface.js";
 import { ALL_METHOD, EMPTY_OBJ } from "./constant.js";
-import { isPromise } from "./utils/promise.js";
+import { isPromise, strip_body } from "./utils/promise.js";
 
 export default class Diesel {
   private static instance: Diesel;
@@ -423,15 +423,12 @@ export default class Diesel {
           env,
           executionContext,
         );
-        return execute_handler(this, ctx, matchedRouteHandler).catch(
+        const res = execute_handler(this, ctx, matchedRouteHandler).catch(
           async (error: any) => {
             return this.handleError(error, ctx);
           },
         )
-        .then((res: Response) => {
-          if (req.method === "HEAD") return new Response(null, { status: res?.status, statusText: res?.statusText, headers: res?.headers });
-          return res;
-        })
+        return req.method === "HEAD" ? res.then(strip_body) : res;
       };
     }
 
@@ -497,14 +494,12 @@ export default class Diesel {
           env,
           executionContext,
         );
-        return execute_handler(this, ctx, matchedRouteHandler).catch(
+        const res =  execute_handler(this, ctx, matchedRouteHandler).catch(
           async (error: any) => {
             return this.handleError(error, ctx);
           },
-        ).then((res: Response) => {
-          if (req.method === "HEAD") return new Response(null, { status: res?.status, statusText: res?.statusText, headers: res?.headers });
-          return res;
-        })
+        )
+        return req.method === "HEAD" ? res.then(strip_body) : res;
       };
     }
 
@@ -543,14 +538,11 @@ export default class Diesel {
       env,
       executionContext,
     );
-    return this.#execute_handlers(ctx, matchedRouteHandler)
+    const res = this.#execute_handlers(ctx, matchedRouteHandler)
       .catch((err: any) =>
       this.handleError(err, ctx),
     )
-    .then(res => {
-      if (req.method === "HEAD") return new Response(null, { status: res?.status, statusText: res?.statusText, headers: res?.headers });
-      return res;
-    })
+    return req.method === "HEAD" ? res.then(strip_body) : res;
   }
 
   /**
