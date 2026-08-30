@@ -189,17 +189,14 @@ export class TrieRouter {
   }
 }
 
-const t1 = new TrieRouter()
-t1.pushMiddleware("/user/:id/profile", () =>{})
-const a = () => { }
-const b = () => {}
-t1.add("GET", "/user/:id/profile", [a,b, () => "profile"]);
-t1.add("GET", "/user/:name/settings", () => "settings");
+// const t1 = new TrieRouter()
+// t1.add("GET", "/user/:id/profile", () => "profile");
+// t1.add("GET", "/user/:name/settings", () => "settings");
 
-const profileResult = t1.find("GET", "/user/123/profile");
+// const profileResult = t1.find("GET", "/user/123/profile");
 // const settingsResult = t1.find("DELETE", "/user/123/settings");
 
-console.log("prifleResult ", profileResult)
+// console.log("prifleResult ", profileResult)
 // console.log("settingsResult ", settingsResult)
 
 
