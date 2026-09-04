@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.5.2
+
+### Performance
+
+- **Static route lookups on the default router are ~8x faster** (28.0 ns → 3.3 ns per `search()` on `/api/v1/orders/recent`; shorter paths like `/health` ~2.7x, 20.3 ns → 7.5 ns). This comes from upgrading `peepal-router` `^0.5.2` → `^0.6.0`, which adds a per-method static-path cache: routes registered without `:params` or `*` are resolved through a `Map` lookup instead of walking the trie segment by segment. `PeepalRouter.find()` (`src/router/interface.ts`) calls `search()`, so every Diesel app on the default router gets this with no code change. Dynamic/param routes are unaffected (~1.1x, still a trie walk).
+- The cache is invalidated correctly when routes or middleware are added after the fact — `insert()` and `pushMiddleware()` rebuild the affected entries, and a lookup that misses is never cached, so it can't shadow the trie walk.
+
+### Notes
+
+- No Diesel API changes. This release exists only to move consumers onto `peepal-router@0.6.0`: the previous `^0.5.2` range excludes `0.6.x`, so existing `diesel-core@3.5.1` installs will never resolve to it on their own.
+- The known param-name collision on diverging branches (`/user/:id/profile` + `/user/:name/settings` sharing a node) is **not** fixed in `peepal-router@0.6.0` — the failing test in `src/router/interface.test.ts` still documents it, alongside the same bug in our own `src/router/trie.ts`.
+
 ## 3.5.1
 
 ### Fixes
