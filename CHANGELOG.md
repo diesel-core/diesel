@@ -1,5 +1,26 @@
 # Changelog
 
+## 3.5.3
+
+### Performance
+
+- **Dynamic and wildcard route lookups on the default router are ~1.2-1.5x faster.** From upgrading `peepal-router` `^0.6.0` → `^0.6.1`, which adds a per-node `hasWildcardChild` flag so `children["*"]` is only probed on nodes that actually have a wildcard child, and hoists the double child lookup (once to test, once to assign) into a single local. Measured on node 24 / V8, `search()` medians over 400k iterations x 15 reps:
+
+  | route | 0.6.0 | 0.6.1 | |
+  | --- | --- | --- | --- |
+  | `/api/v1/users/:id` | 63.1 ns | 52.9 ns | 1.19x |
+  | `/api/v1/users/:id/posts/:postId` | 96.6 ns | 66.0 ns | 1.46x |
+  | `/static/*` | 43.3 ns | 34.0 ns | 1.27x |
+
+  Same direction but smaller under bun 1.4 / JSC (two-param ~1.20x, wildcard ~1.18x, single-param within noise). Static routes are unchanged (~4.5 ns node, ~3.0 ns bun) — they resolve from the 3.5.2 static cache and never walk the trie.
+
+### Notes
+
+- No Diesel API changes, and no routing behaviour changes: the same request matches the same handler with the same params as on 3.5.2.
+- Unlike the 3.5.2 bump, this one is **not** required for consumers to pick the upgrade up. The existing `^0.6.0` range already admits `0.6.1`, so a fresh `diesel-core@3.5.2` install resolves to it anyway; this release only raises the declared floor so lockfiles pinned at `0.6.0` move.
+- Two changes are called out as breaking upstream; neither reaches Diesel. The `Find` → `Result` type rename is types-only and `src/router/interface.ts` imports just `TrieRouter` (its `Find` is our own local interface). Lookups that collect no middleware now return a shared frozen empty array instead of allocating — we only ever iterate `matchedRouteHandler.middlewares` (`src/main.ts`, and the generated pipeline in `src/request_pipeline.ts`), never mutate it.
+- The known param-name collision on diverging branches (`/user/:id/profile` + `/user/:name/settings` sharing a node) is still **not** fixed in `peepal-router@0.6.1` — the failing test in `src/router/interface.test.ts` continues to document it, alongside the same bug in our own `src/router/trie.ts`.
+
 ## 3.5.2
 
 ### Performance
