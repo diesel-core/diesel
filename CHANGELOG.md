@@ -4,7 +4,7 @@
 
 ### Fixes
 
-- **A request for `/__proto__`, `/constructor`, `/toString` or any other `Object.prototype` key crashed the router on the default (peepal) router.** From upgrading `peepal-router` `^0.6.1` → `^0.6.5`; the fix landed upstream in `0.6.4`. Trie node children were stored in a plain `{}`, so `children["__proto__"]` returned an inherited object instead of `undefined`, the walk stepped into it and threw on the next segment. `PeepalRouter.find()` (`src/router/interface.ts`) calls `search()`, which is affected at any depth, so every Diesel app on the default router was exposed. Reproduced against `0.6.1` on a table of `/user/:id` + `/health`:
+- **A request for `/__proto__`, `/constructor`, `/toString` or any other `Object.prototype` key crashed the router on the default (peepal) router.** From upgrading `peepal-router` `^0.6.1` → `^0.6.6`; the fix landed upstream in `0.6.4`. Trie node children were stored in a plain `{}`, so `children["__proto__"]` returned an inherited object instead of `undefined`, the walk stepped into it and threw on the next segment. `PeepalRouter.find()` (`src/router/interface.ts`) calls `search()`, which is affected at any depth, so every Diesel app on the default router was exposed. Reproduced against `0.6.1` on a table of `/user/:id` + `/health`:
 
   ```
   /__proto__      TypeError: Cannot read properties of undefined (reading 'GET')
@@ -32,8 +32,8 @@
 - No Diesel API changes, and no routing behaviour changes for paths that already worked: the same request matches the same handler with the same params as on 3.5.3. The test suite is identical across the bump (181 pass, the same 4 pre-existing failures).
 - **The upstream `0.6.5` static-cache claim does not reproduce here.** Its changelog reports +60% (V8) / +96% (JSC) on all-static traffic from backing the per-method static caches with `Object.create(null)` instead of `Map`. Measured through Diesel's own call shape, all-static traffic is flat-to-slightly-slower (0.86-0.94x on node, within noise on bun) — a `Map` hit and a null-prototype object hit are both ~5-7 ns and neither touches the trie. Treat the static-path numbers in this release as unchanged, not improved.
 - The `Object.create(null)` change is still worth having for correctness rather than speed: the caches are keyed by raw request paths, so a plain `{}` would reintroduce the `/__proto__` bug at the cache layer.
-- This bump **is** required for consumers to pick the fix up. The previous `^0.6.1` range already admits `0.6.5`, so fresh installs resolve to it anyway — but any lockfile pinned at `0.6.1` through `0.6.3` stays on a crashing router until the declared floor moves.
-- The known param-name collision on diverging branches (`/user/:id/profile` + `/user/:name/settings` sharing a node) is still **not** fixed in `peepal-router@0.6.5` — the failing test in `src/router/interface.test.ts` continues to document it, alongside the same bug in our own `src/router/trie.ts`.
+- This bump **is** required for consumers to pick the fix up. The previous `^0.6.1` range already admits `0.6.6`, so fresh installs resolve to it anyway — but any lockfile pinned at `0.6.1` through `0.6.3` stays on a crashing router until the declared floor moves.
+- The known param-name collision on diverging branches (`/user/:id/profile` + `/user/:name/settings` sharing a node) is still **not** fixed in `peepal-router@0.6.6` — the failing test in `src/router/interface.test.ts` continues to document it, alongside the same bug in our own `src/router/trie.ts`.
 
 ## 3.5.3
 
